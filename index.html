@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistema de Controle Financeiro Avançado</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+        }
+
+        header {
+            background-color: #0078D7;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        h1, h2 {
+            margin: 0 0 10px 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 0px 15px rgba(0,0,0,0.1);
+        }
+
+        input, select, button {
+            padding: 10px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background-color: #0078D7;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #005a9e;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #0078D7;
+            color: white;
+        }
+
+        .balance-card {
+            background-color: #e1f0ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        canvas {
+            margin-top: 25px;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1 id="systemTitle">Sistema de Controle Financeiro Avançado</h1>
+</header>
+
+<div class="container">
+    <h2>Usuário/Empresa</h2>
+    <input type="text" id="userName" placeholder="Digite seu nome ou empresa" oninput="updateTitle()">
+
+    <h2>Adicionar Transação</h2>
+    <input type="number" id="amount" placeholder="Valor" step="0.01">
+    <select id="transactionType">
+        <option value="income">Receita</option>
+        <option value="expense">Despesa</option>
+    </select>
+    <input type="text" id="category" placeholder="Categoria">
+    <select id="transactionSubtype">
+        <option value="oneTime">Única</option>
+        <option value="monthly">Mensal</option>
+    </select>
+    <input type="number" id="installments" placeholder="Parcelas (opcional)" min="1">
+    <button onclick="addTransaction()">Adicionar</button>
+
+    <div class="balance-card">
+        Saldo Atual: R$ <span id="balance">0.00</span>
+    </div>
+
+    <h2>Transações</h2>
+    <table id="transactionTable">
+        <thead>
+        <tr>
+            <th>Valor</th>
+            <th>Tipo</th>
+            <th>Categoria</th>
+            <th>Subtipo</th>
+            <th>Parcelas</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <h2>Gráfico de Receitas x Despesas</h2>
+    <canvas id="financialChart" width="800" height="400"></canvas>
+</div>
+
+<script>
+    let transactions = [];
+
+    function updateTitle() {
+        const name = document.getElementById('userName').value;
+        const title = name ? `Sistema de Controle Financeiro - ${name}` : "Sistema de Controle Financeiro Avançado";
+        document.getElementById('systemTitle').innerText = title;
+    }
+
+    function updateBalance() {
+        let balance = transactions.reduce((acc, t) => {
+            return t.type === 'income' ? acc + t.amount : acc - t.amount;
+        }, 0);
+        document.getElementById('balance').innerText = balance.toFixed(2);
+    }
+
+    function updateTable() {
+        const tbody = document.getElementById('transactionTable').querySelector('tbody');
+        tbody.innerHTML = '';
+        transactions.forEach(t => {
+            let row = tbody.insertRow();
+            row.insertCell(0).innerText = t.amount.toFixed(2);
+            row.insertCell(1).innerText = t.type === 'income' ? 'Receita' : 'Despesa';
+            row.insertCell(2).innerText = t.category;
+            row.insertCell(3).innerText = t.subtype === 'oneTime' ? 'Única' : 'Mensal';
+            row.insertCell(4).innerText = t.installments || '-';
+        });
+    }
+
+    function addTransaction() {
+        const amount = parseFloat(document.getElementById('amount').value);
+        const type = document.getElementById('transactionType').value;
+        const category = document.getElementById('category').value;
+        const subtype = document.getElementById('transactionSubtype').value;
+        const installments = parseInt(document.getElementById('installments').value);
+
+        if (!amount || !category) {
+            alert('Preencha todos os campos obrigatórios.');
+            return;
+        }
+
+        if (installments && installments > 1) {
+            const installmentValue = amount / installments;
+            for (let i = 0; i < installments; i++) {
+                transactions.push({ amount: installmentValue, type, category, subtype, installments });
+            }
+        } else {
+            transactions.push({ amount, type, category, subtype, installments });
+        }
+
+        updateBalance();
+        updateTable();
+        updateChart();
+
+        document.getElementById('amount').value = '';
+        document.getElementById('category').value = '';
+        document.getElementById('installments').value = '';
+    }
+
+    function updateChart() {
+        let months = ['Mês Anterior', 'Mês Atual', 'Próximo Mês'];
+        let incomes = [500, 0, 0];
+        let expenses = [300, 0, 0];
+
+        transactions.forEach(t => {
+            if (t.type === 'income') {
+                incomes[1] += t.amount;
+                if (t.subtype === 'monthly') incomes[2] += t.amount;
+            } else {
+                expenses[1] += t.amount;
+                if (t.subtype === 'monthly') expenses[2] += t.amount;
+            }
+        });
+
+        if (window.finChart) window.finChart.destroy();
+
+        const ctx = document.getElementById('financialChart').getContext('2d');
+        window.finChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [
+                    { label: 'Receitas', data: incomes, backgroundColor: '#4caf50' },
+                    { label: 'Despesas', data: expenses, backgroundColor: '#f44336' }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    updateChart();
+</script>
+</body>
+</html>
